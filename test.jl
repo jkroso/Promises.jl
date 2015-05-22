@@ -1,4 +1,4 @@
-@require "."
+@require "." Deferred need @defer
 
 suite("non-deferred's") do
   @test need(1) == 1

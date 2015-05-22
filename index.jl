@@ -1,5 +1,3 @@
-export Deferred, need, @defer
-
 type Deferred{T}
   fn::Function
   state::Int
