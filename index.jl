@@ -1,9 +1,9 @@
 type Deferred{T}
   fn::Function
-  state::Int
+  state::Symbol
   value::T
   error::Exception
-  Deferred(f::Function) = new(f, 0)
+  Deferred(f::Function) = new(f, :pending)
 end
 
 Deferred{T}(f::Function, ::Type{T}=Any) = Deferred{T}(f)
@@ -13,16 +13,16 @@ Deferred{T}(f::Function, ::Type{T}=Any) = Deferred{T}(f)
 #
 function need(x::Any) x end
 function need(d::Deferred)
-  d.state == 2 && return d.value
-  d.state == 1 && rethrow(d.error)
+  d.state == :evaled && return d.value
+  d.state == :failed && rethrow(d.error)
   try
     d.value = d.fn()
-    d.state = 2
+    d.state = :evaled
     d.value
   catch e
-    d.state = 1
+    d.state = :failed
     d.error = e
-    rethrow(e)
+    rethrow()
   end
 end
 
