@@ -1,4 +1,4 @@
-@require "." Deferred need @defer
+@require "." Deferred need @defer Async
 
 suite("non-deferred's") do
   @test need(1) == 1
@@ -30,4 +30,23 @@ suite("macros") do
   @test need(@defer 1::Int) == 1
   @test_throws MethodError need(@defer "one"::Int)
   @test_throws ErrorException need(@defer error("one")::Int)
+end
+
+suite("async") do
+  suite("write") do
+    promise = Async()
+    task = @async need(promise)
+    write(promise, 1)
+    @test need(promise) == 1
+    @test task.result == 1
+  end
+
+  suite("error") do
+    promise = Async()
+    task = @async need(promise)
+    error(promise, ErrorException("boom"))
+    @test_throws ErrorException need(promise)
+    @test task.result == promise.error
+    @test task.state == :failed
+  end
 end
