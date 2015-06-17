@@ -1,6 +1,6 @@
-abstract Promise
+abstract Promise{T}
 
-type Deferred{T} <: Promise
+type Deferred{T} <: Promise{T}
   fn::Function
   state::Symbol
   value::T
@@ -45,7 +45,7 @@ end
 # thread while waiting for another thread to complete if
 # it needs to
 #
-type Async{T} <: Promise
+type Async{T} <: Promise{T}
   cond::Condition
   state::Symbol
   value::T

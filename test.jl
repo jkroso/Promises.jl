@@ -49,4 +49,11 @@ suite("async") do
     @test task.result == promise.error
     @test task.state == :failed
   end
+
+  suite("types") do
+    promise = Async{Int}()
+    write(promise, 1)
+    @test need(promise) == 1
+    @test_throws Exception write(Async{Int}(), "a string")
+  end
 end
