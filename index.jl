@@ -8,7 +8,7 @@ type Deferred{T} <: Promise{T}
   Deferred(f::Function) = new(f, :pending)
 end
 
-Deferred{T}(f::Function, ::Type{T}=Any) = Deferred{T}(f)
+Deferred(f::Function) = Deferred{Any}(f)
 
 ##
 # Evaluate the value
@@ -28,16 +28,35 @@ function need(d::Deferred)
   end
 end
 
+test("need") do
+  array = Deferred(vcat)
+  @test need(1) == 1
+  @test need(array) == {}
+  @test need(array) === need(array)
+  @test isa(@catch(need(Deferred(error))), ErrorException)
+  test("with types") do
+    @test need(Deferred{Vector}(vcat)) == {}
+    @test isa(@catch(need(Deferred{Vector}(string))), MethodError)
+  end
+end
+
 ##
 # Create a Deferred from an Expr. If `body` is annotated
 # with a `Type` then create a `Deferred{Type}`
 #
 macro defer(body)
   if isa(body, Expr) && body.head == symbol("::")
-    :(Deferred(() -> $(esc(body.args[1])), $(esc(body.args[2]))))
+    :(Deferred{$(esc(body.args[2]))}(() -> $(esc(body.args[1]))))
   else
-    :(Deferred(() -> $(esc(body))))
+    :(Deferred{Any}(() -> $(esc(body))))
   end
+end
+
+test("@defer") do
+  @test need(@defer 1) == 1
+  @test isa(@catch(need(@defer error())), ErrorException)
+  @test typeof(@defer 1) == Deferred{Any}
+  @test typeof(@defer 1::Int) == Deferred{Int}
 end
 
 ##
@@ -83,6 +102,14 @@ function Base.write(promise::Async, value)
   notify(promise.cond, value)
 end
 
+test("write") do
+  promise = Async()
+  task = @async need(promise)
+  write(promise, 1)
+  @test need(promise) == 1
+  @test wait(task) == 1
+end
+
 ##
 # Put the Promise into a failed state
 #
@@ -92,4 +119,14 @@ function Base.error(promise::Async, e::Exception)
     promise.error = e
   end
   notify(promise.cond, e; error=true)
+end
+
+test("error") do
+  promise = Async()
+  task = @async need(promise)
+  error(promise, ErrorException(""))
+  @test isa(@catch(need(promise)), ErrorException)
+  @test @catch(need(promise)) === @catch wait(task)
+  @test task.result == promise.error
+  @test task.state == :failed
 end
