@@ -167,7 +167,11 @@ macro thread(body)
   end
   quote
     result = Result{$T}()
-    write(result, $(esc(body)))
+    schedule(@task try
+      write(result, $(esc(body)))
+    catch e
+      error(result, e)
+    end)
     result
   end
 end
