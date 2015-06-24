@@ -153,3 +153,28 @@ test("error") do
   @test task.result == result.error
   @test task.state == :failed
 end
+
+##
+# Run body in a seperate thread and communicate the result
+# with a Result which is the only difference between this
+# and @Base.async which returns a Task
+#
+macro thread(body)
+  if isa(body, Expr) && body.head == symbol("::")
+    body,T = body.args
+  else
+    T = Any
+  end
+  quote
+    result = Result{$T}()
+    write(result, $(esc(body)))
+    result
+  end
+end
+
+test("@thread") do
+  @test need(@thread 1) == 1
+  @test isa(@catch(need(@thread error())), ErrorException)
+  @test typeof(@thread 1) == Result{Any}
+  @test typeof(@thread 1::Int) == Result{Int}
+end
