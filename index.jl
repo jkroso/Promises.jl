@@ -1,27 +1,27 @@
 ##
-# Deferred's are placeholders for a value which isn't
+# A Promise is a placeholder for a value which isn't
 # yet known. Though we may know what type it will be
-# hence Deferred takes the type of its eventual value
+# hence Promises take the type of their eventual value
 # as a parameter
 #
-# Julia's Tasks provide everything Deferreds provide though
+# Julia's Tasks provide everything Promises provide though
 # they also do a lot more which makes me feel uncomfortable
-# about building abstractions on top of them which treat
+# about building abstractions on top of them that treat
 # them as simple values
 #
-abstract Deferred{T}
+abstract Promise{T}
 
 ##
-# When you want to get the actual value of a deferred you
+# When you want to get the actual value of a Promise you
 # just call `need` on it. It's safe to call `need` on all
 # types so if in doubt...need it
 #
 function need(x::Any) x end
 
 ##
-# Computation's are intended to enable lazy evaluation
+# Promised Computation's are intended to enable lazy evaluation
 #
-type Computation{T} <: Deferred{T}
+type Computation{T} <: Promise{T}
   thunk::Function
   state::Symbol
   value::T
@@ -35,7 +35,7 @@ Computation(f::Function) = Computation{Any}(f)
 ##
 # The first time a Computation is needed it's thunk is called and the
 # result is stored. Whether it return or throws. From then on it
-# will just replicates this result without re-running the thunk
+# will just replicate this result without re-running the thunk
 #
 function need(d::Computation)
   d.state == :evaled && return d.value
@@ -86,30 +86,30 @@ end
 # Values are intended to provide a way for asynchronous processes
 # to communicate their result to other threads
 #
-type Value{T} <: Deferred{T}
+type Result{T} <: Promise{T}
   cond::Condition
   state::Symbol
   value::T
   error::Exception
-  Value() = new(Condition(), :pending)
-  Value(c::Condition) = new(c, :pending)
+  Result() = new(Condition(), :pending)
+  Result(c::Condition) = new(c, :pending)
 end
 
 # Make the type optional
-Value() = Value{Any}()
+Result() = Result{Any}()
 
-function need(v::Value)
-  v.state == :evaled && return v.value
-  v.state == :failed && rethrow(v.error)
-  v.state == :needed && return wait(v.cond)
+function need(r::Result)
+  r.state == :evaled && return r.value
+  r.state == :failed && rethrow(r.error)
+  r.state == :needed && return wait(r.cond)
   try
-    v.state = :needed
-    v.value = wait(v.cond)
-    v.state = :evaled
-    v.value
+    r.state = :needed
+    r.value = wait(r.cond)
+    r.state = :evaled
+    r.value
   catch e
-    v.state = :failed
-    v.error = e
+    r.state = :failed
+    r.error = e
     rethrow(e)
   end
 end
@@ -117,16 +117,16 @@ end
 ##
 # Give the Promise its value
 #
-function Base.write(v::Value, value)
-  if v.state == :pending
-    v.state = :evaled
-    v.value = value
+function Base.write(r::Result, value)
+  if r.state == :pending
+    r.state = :evaled
+    r.value = value
   end
-  notify(v.cond, value)
+  notify(r.cond, value)
 end
 
 test("write") do
-  result = Value()
+  result = Result()
   task = @async need(result)
   write(result, 1)
   @test need(result) == 1
@@ -136,16 +136,16 @@ end
 ##
 # Put the Promise into a failed state
 #
-function Base.error(v::Value, e::Exception)
-  if v.state == :pending
-    v.state = :failed
-    v.error = e
+function Base.error(r::Result, e::Exception)
+  if r.state == :pending
+    r.state = :failed
+    r.error = e
   end
-  notify(v.cond, e; error=true)
+  notify(r.cond, e; error=true)
 end
 
 test("error") do
-  result = Value()
+  result = Result()
   task = @async need(result)
   error(result, ErrorException(""))
   @test isa(@catch(need(result)), ErrorException)
