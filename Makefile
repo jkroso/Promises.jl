@@ -1,9 +1,7 @@
-
-dependencies: dependencies.json
-	@packin install --folder $@ --meta $<
-	@ln -snf .. $@/Promises
+dependencies:
+	mkdir $@ && ln -snf .. $@/Promises
 
 test: dependencies
-	@$</jest/bin/jest $@
+	@jest index.jl
 
 .PHONY: test
