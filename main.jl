@@ -4,11 +4,6 @@
 # hence Promises take the type of their eventual value
 # as a parameter
 #
-# Julia's Tasks provide everything Promises provide though
-# they also do a lot more which makes me feel uncomfortable
-# about building abstractions on top of them that treat
-# them as simple values
-#
 abstract Promise{T}
 
 ##
@@ -83,7 +78,7 @@ test("@defer") do
 end
 
 ##
-# Values are intended to provide a way for asynchronous processes
+# Results are intended to provide a way for asynchronous processes
 # to communicate their result to other threads
 #
 type Result{T} <: Promise{T}
