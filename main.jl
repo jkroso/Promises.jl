@@ -6,9 +6,8 @@ the type of their eventual value as a parameter
 abstract Promise{T}
 
 """
-When you want to get the actual value of a Promise you
-just call `need` on it. It's safe to call `need` on all
-types so if in doubt...need it
+When you want to get the actual value of a Promise you just call `need`
+on it. It's safe to call `need` on all types so if in doubt...need it
 """
 function need(x::Any) x end
 
