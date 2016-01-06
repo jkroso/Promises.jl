@@ -1,38 +1,35 @@
-##
-# A Promise is a placeholder for a value which isn't
-# yet known. Though we may know what type it will be
-# hence Promises take the type of their eventual value
-# as a parameter
-#
+"""
+A Promise is a placeholder for a value which isn't yet known.
+Though we may know what type it will be hence Promises take
+the type of their eventual value as a parameter
+"""
 abstract Promise{T}
 
-##
-# When you want to get the actual value of a Promise you
-# just call `need` on it. It's safe to call `need` on all
-# types so if in doubt...need it
-#
+"""
+When you want to get the actual value of a Promise you
+just call `need` on it. It's safe to call `need` on all
+types so if in doubt...need it
+"""
 function need(x::Any) x end
 
-##
-# Promised Computation's are intended to enable lazy evaluation
-#
-type Computation{T} <: Promise{T}
+"Deferred's enable lazy evaluation"
+type Deferred{T} <: Promise{T}
   thunk::Function
   state::Symbol
   value::T
   error::Exception
-  Computation(f::Function) = new(f, :pending)
+  Deferred(f::Function) = new(f, :pending)
 end
 
-# Make the type parameter optional
-Computation(f::Function) = Computation{Any}(f)
+"Make the type parameter optional"
+Deferred(f::Function) = Deferred{Any}(f)
 
-##
-# The first time a Computation is needed it's thunk is called and the
-# result is stored. Whether it return or throws. From then on it
-# will just replicate this result without re-running the thunk
-#
-function need(d::Computation)
+"""
+The first time a Deferred is needed it's thunk is called and the
+result is stored. Whether it return or throws. From then on it
+will just replicate this result without re-running the thunk
+"""
+function need(d::Deferred)
   d.state == :evaled && return d.value
   d.state == :failed && rethrow(d.error)
   try
@@ -47,40 +44,40 @@ function need(d::Computation)
 end
 
 test("need") do
-  array = Computation(vcat)
+  array = Deferred(vcat)
   @test need(1) == 1
-  @test need(array) == {}
+  @test need(array) == vcat()
   @test need(array) === need(array)
-  @test isa(@catch(need(Computation(error))), ErrorException)
+  @test isa(@catch(need(Deferred(error))), ErrorException)
   test("with types") do
-    @test need(Computation{Vector}(vcat)) == {}
-    @test isa(@catch(need(Computation{Vector}(string))), MethodError)
+    @test need(Deferred{Vector}(vcat)) == vcat()
+    @test isa(@catch(need(Deferred{Vector}(string))), MethodError)
   end
 end
 
-##
-# Create a Deferred from an Expr. If `body` is annotated
-# with a `Type` then create a `Deferred{Type}`
-#
+"""
+Create a Deferred from an Expr. If `body` is annotated with a
+type `x` then create a `Deferred{x}`
+"""
 macro defer(body)
   if isa(body, Expr) && body.head == symbol("::")
-    :(Computation{$(esc(body.args[2]))}(()-> $(esc(body.args[1]))))
+    :(Deferred{$(esc(body.args[2]))}(()-> $(esc(body.args[1]))))
   else
-    :(Computation{Any}(()-> $(esc(body))))
+    :(Deferred{Any}(()-> $(esc(body))))
   end
 end
 
 test("@defer") do
   @test need(@defer 1) == 1
   @test isa(@catch(need(@defer error())), ErrorException)
-  @test typeof(@defer 1) == Computation{Any}
-  @test typeof(@defer 1::Int) == Computation{Int}
+  @test typeof(@defer 1) == Deferred{Any}
+  @test typeof(@defer 1::Int) == Deferred{Int}
 end
 
-##
-# Results are intended to provide a way for asynchronous processes
-# to communicate their result to other threads
-#
+"""
+Results are intended to provide a way for asynchronous processes
+to communicate their result to other threads
+"""
 type Result{T} <: Promise{T}
   cond::Condition
   state::Symbol
@@ -90,9 +87,10 @@ type Result{T} <: Promise{T}
   Result(c::Condition) = new(c, :pending)
 end
 
-# Make the type optional
+"Make the type optional"
 Result() = Result{Any}()
 
+"Await the result if its pending. Otherwise reproduce it cached value or exception"
 function need(r::Result)
   r.state == :evaled && return r.value
   r.state == :failed && rethrow(r.error)
@@ -109,9 +107,7 @@ function need(r::Result)
   end
 end
 
-##
-# Give the Promise its value
-#
+"Give the Promise its value"
 function Base.write(r::Result, value)
   if r.state == :pending
     r.state = :evaled
@@ -128,9 +124,7 @@ test("write") do
   @test wait(task) == 1
 end
 
-##
-# Put the Promise into a failed state
-#
+"Put the Promise into a failed state"
 function Base.error(r::Result, e::Exception)
   if r.state == :pending
     r.state = :failed
@@ -149,11 +143,11 @@ test("error") do
   @test task.state == :failed
 end
 
-##
-# Run body in a seperate thread and communicate the result
-# with a Result which is the only difference between this
-# and @Base.async which returns a Task
-#
+"""
+Run body in a seperate thread and communicate the result with a Result
+which is the only difference between this and @Base.async which returns
+a Task
+"""
 macro thread(body)
   if isa(body, Expr) && body.head == symbol("::")
     body,T = body.args
