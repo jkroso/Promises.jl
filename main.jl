@@ -134,12 +134,10 @@ end
 
 test("error") do
   result = Result()
-  task = @async need(result)
+  task = @async @catch(need(result))
   error(result, ErrorException(""))
-  @test isa(@catch(need(result)), ErrorException)
-  @test @catch(need(result)) === @catch wait(task)
-  @test task.result == result.error
-  @test task.state == :failed
+  @test is(@catch(need(result)), wait(task))
+  @test is(wait(task), result.error)
 end
 
 """
