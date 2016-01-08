@@ -78,18 +78,16 @@ Results are intended to provide a way for asynchronous processes
 to communicate their result to other threads
 """
 type Result{T} <: Promise{T}
-  cond::Condition
+  cond::Task
   state::Symbol
   value::T
   error::Exception
-  Result() = new(Condition(), :pending)
-  Result(c::Condition) = new(c, :pending)
+  Result(c::Task) = new(c, :pending)
 end
 
-"Make the type optional"
-Result() = Result{Any}()
-
-"Await the result if its pending. Otherwise reproduce it cached value or exception"
+"""
+Await the result if its pending. Otherwise reproduce it cached value or exception
+"""
 function need(r::Result)
   r.state == :evaled && return r.value
   r.state == :failed && rethrow(r.error)
@@ -106,40 +104,6 @@ function need(r::Result)
   end
 end
 
-"Give the Promise its value"
-function Base.write(r::Result, value)
-  if r.state == :pending
-    r.state = :evaled
-    r.value = value
-  end
-  notify(r.cond, value)
-end
-
-test("write") do
-  result = Result()
-  task = @async need(result)
-  write(result, 1)
-  @test need(result) == 1
-  @test wait(task) == 1
-end
-
-"Put the Promise into a failed state"
-function Base.error(r::Result, e::Exception)
-  if r.state == :pending
-    r.state = :failed
-    r.error = e
-  end
-  notify(r.cond, e; error=true)
-end
-
-test("error") do
-  result = Result()
-  task = @async @catch(need(result))
-  error(result, ErrorException(""))
-  @test is(@catch(need(result)), wait(task))
-  @test is(wait(task), result.error)
-end
-
 """
 Run body in a seperate thread and communicate the result with a Result
 which is the only difference between this and @Base.async which returns
@@ -151,15 +115,7 @@ macro thread(body)
   else
     T = Any
   end
-  quote
-    result = Result{$T}()
-    schedule(@task try
-      write(result, $(esc(body)))
-    catch e
-      error(result, e)
-    end)
-    result
-  end
+  :(Result{$T}(@schedule $(esc(body))))
 end
 
 test("@thread") do
