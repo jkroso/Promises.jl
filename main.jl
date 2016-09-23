@@ -42,35 +42,16 @@ function need(d::Deferred)
   end
 end
 
-test("need") do
-  array = Deferred(vcat)
-  @test need(1) == 1
-  @test need(array) == vcat()
-  @test need(array) === need(array)
-  @test isa(@catch(need(Deferred(error))), ErrorException)
-  test("with types") do
-    @test need(Deferred{Vector}(vcat)) == vcat()
-    @test isa(@catch(need(Deferred{Vector}(string))), MethodError)
-  end
-end
-
 """
 Create a Deferred from an Expr. If `body` is annotated with a
 type `x` then create a `Deferred{x}`
 """
 macro defer(body)
-  if isa(body, Expr) && body.head == symbol("::")
+  if isa(body, Expr) && body.head == :(::)
     :(Deferred{$(esc(body.args[2]))}(()-> $(esc(body.args[1]))))
   else
     :(Deferred{Any}(()-> $(esc(body))))
   end
-end
-
-test("@defer") do
-  @test need(@defer 1) == 1
-  @test isa(@catch(need(@defer error())), ErrorException)
-  @test typeof(@defer 1) == Deferred{Any}
-  @test typeof(@defer 1::Int) == Deferred{Int}
 end
 
 """
@@ -110,17 +91,10 @@ which is the only difference between this and @Base.async which returns
 a Task
 """
 macro thread(body)
-  if isa(body, Expr) && body.head == symbol("::")
+  if isa(body, Expr) && body.head == :(::)
     body,T = body.args
   else
     T = Any
   end
   :(Result{$T}(@schedule $(esc(body))))
-end
-
-test("@thread") do
-  @test need(@thread 1) == 1
-  @test isa(@catch(need(@thread error())), ErrorException)
-  @test typeof(@thread 1) == Result{Any}
-  @test typeof(@thread 1::Int) == Result{Int}
 end
