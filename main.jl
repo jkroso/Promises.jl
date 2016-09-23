@@ -56,7 +56,7 @@ end
 
 """
 Results are intended to provide a way for asynchronous processes
-to communicate their result to other threads
+to communicate their result to the thread that spawned them
 """
 type Result{T} <: Promise{T}
   cond::Task
@@ -67,7 +67,7 @@ type Result{T} <: Promise{T}
 end
 
 """
-Await the result if its pending. Otherwise reproduce it cached value or exception
+Await the result if its pending. Otherwise reproduce its value or exception
 """
 function need(r::Result)
   r.state == :evaled && return r.value
