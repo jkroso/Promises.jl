@@ -34,8 +34,8 @@ result is stored. Whether it return or throws. From then on it
 will just replicate this result without re-running the thunk
 """
 function need(d::Deferred)
-  d.state === evaled && return d.value
-  d.state === failed && rethrow(d.error)
+  d.state ≡ evaled && return d.value
+  d.state ≡ failed && rethrow(d.error)
   try
     d.value = d.thunk()
     d.state = evaled
@@ -52,7 +52,7 @@ Create a Deferred from an Expr. If `body` is annotated with a
 type `x` then create a `Deferred{x}`
 """
 macro defer(body)
-  if isa(body, Expr) && body.head == :(::)
+  if isa(body, Expr) && body.head ≡ :(::)
     :(Deferred{$(esc(body.args[2]))}(()-> $(esc(body.args[1]))))
   else
     :(Deferred{Any}(()-> $(esc(body))))
@@ -75,9 +75,9 @@ end
 Await the result if its pending. Otherwise reproduce its value or exception
 """
 function need(r::Result)
-  r.state === evaled && return r.value
-  r.state === failed && rethrow(r.error)
-  r.state === needed && return wait(r.cond)
+  r.state ≡ evaled && return r.value
+  r.state ≡ failed && rethrow(r.error)
+  r.state ≡ needed && return wait(r.cond)
   try
     r.state = needed
     r.value = wait(r.cond)
@@ -96,7 +96,7 @@ which is the only difference between this and @Base.async which returns
 a Task
 """
 macro thread(body)
-  if isa(body, Expr) && body.head == :(::)
+  if isa(body, Expr) && body.head ≡ :(::)
     body,T = body.args
   else
     T = Any
