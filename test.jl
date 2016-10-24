@@ -1,4 +1,4 @@
-@require "." @thread @defer need Deferred Result
+@require "." @thread @defer need Deferred Result Future assign
 
 testset("need") do
   array = Deferred(vcat)
@@ -24,4 +24,14 @@ testset("@thread") do
   @test isa(@catch(need(@thread error())), ErrorException)
   @test typeof(@thread 1) == Result{Any}
   @test typeof(@thread 1::Int) == Result{Int}
+end
+
+testset("Future") do
+  f = Future()
+  assign(f, 1)
+  @test need(f) ≡ 1
+  f = Future()
+  e = ErrorException("boom")
+  error(f, e)
+  @test @catch(need(f)) ≡ e
 end

@@ -5,9 +5,7 @@ the type of their eventual value as a parameter
 """
 abstract Promise{T}
 
-"""
-A Promise can be in one of the following states
-"""
+"A Promise can be in one of the following states"
 @enum State pending needed evaled failed
 
 """
@@ -60,8 +58,7 @@ macro defer(body)
 end
 
 """
-Results are intended to provide a way for asynchronous processes
-to communicate their result to the thread that spawned them
+Results wrap Tasks with the API of a Promise
 """
 type Result{T} <: Promise{T}
   cond::Task
@@ -69,25 +66,6 @@ type Result{T} <: Promise{T}
   value::T
   error::Exception
   Result(c::Task) = new(c, pending)
-end
-
-"""
-Await the result if its pending. Otherwise reproduce its value or exception
-"""
-function need(r::Result)
-  r.state ≡ evaled && return r.value
-  r.state ≡ failed && rethrow(r.error)
-  r.state ≡ needed && return wait(r.cond)
-  try
-    r.state = needed
-    r.value = wait(r.cond)
-    r.state = evaled
-    r.value
-  catch e
-    r.state = failed
-    r.error = e
-    rethrow(e)
-  end
 end
 
 """
@@ -102,4 +80,59 @@ macro thread(body)
     T = Any
   end
   :(Result{$T}(@schedule $(esc(body))))
+end
+
+"""
+We use Futures when we don't have a value yet and aren't even sure
+where its going to come from
+"""
+type Future{T} <: Promise{T}
+  state::State
+  cond::Condition
+  value::T
+  error::Exception
+  Future() = new(pending, Condition())
+end
+
+Future() = Future{Any}()
+
+"""
+Fill in the `Future` with its final value. Any `Task`'s waiting
+on this value will be able to continue
+"""
+function assign(f::Future, value::Any)
+  if f.state ≡ pending
+    f.state = evaled
+    f.value = value
+  elseif f.state ≡ needed
+    notify(f.cond, value)
+  end
+end
+
+"""
+If you were unable to compute the value of the Future then you should `error` it
+"""
+function Base.error(f::Future, error::Exception)
+  if f.state ≡ pending
+    f.state = failed
+    f.error = error
+  elseif f.state ≡ needed
+    notify(f.cond, error; error=true)
+  end
+end
+
+function need(f::Union{Future,Result})
+  f.state ≡ evaled && return f.value
+  f.state ≡ failed && rethrow(f.error)
+  f.state ≡ needed && return wait(f.cond)
+  try
+    f.state = needed
+    f.value = wait(f.cond)
+    f.state = evaled
+    f.value
+  catch e
+    f.state = failed
+    f.error = e
+    rethrow(e)
+  end
 end
