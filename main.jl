@@ -136,3 +136,5 @@ function need(f::Union{Future,Result})
     rethrow(e)
   end
 end
+
+Base.wait(p::Promise) = need(p)
