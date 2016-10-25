@@ -106,6 +106,8 @@ function assign(f::Future, value::Any)
     f.value = value
   elseif f.state ≡ needed
     notify(f.cond, value)
+  else
+    error("Can't assign to a Promise which has been $(f.state)")
   end
 end
 
@@ -118,6 +120,8 @@ function Base.error(f::Future, error::Exception)
     f.error = error
   elseif f.state ≡ needed
     notify(f.cond, error; error=true)
+  else
+    error("Can't error a Promise which has been $(f.state)")
   end
 end
 

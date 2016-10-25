@@ -29,9 +29,11 @@ end
 testset("Future") do
   f = Future()
   assign(f, 1)
+  @test isa(@catch(assign(f, 2)), ErrorException)
   @test need(f) ≡ 1
   f = Future()
   e = ErrorException("boom")
   error(f, e)
+  @test isa(@catch(assign(f, e)), ErrorException)
   @test @catch(need(f)) ≡ e
 end
