@@ -10,6 +10,8 @@ abstract Promise{T}
 "A Promise can be in one of the following states"
 @enum State pending needed evaled failed
 
+Base.isready(p::Promise) = p.state > needed
+
 "Deferred's enable lazy evaluation"
 type Deferred{T} <: Promise{T}
   thunk::Function
