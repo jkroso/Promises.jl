@@ -1,3 +1,5 @@
+@require "github.com/jkroso/Prospects.jl" need
+
 """
 A Promise is a placeholder for a value which isn't yet known.
 Though we may know what type it will be hence Promises take
@@ -7,12 +9,6 @@ abstract Promise{T}
 
 "A Promise can be in one of the following states"
 @enum State pending needed evaled failed
-
-"""
-When you want to get the actual value of a Promise you just call `need`
-on it. It's safe to call `need` on all types so if in doubt...need it
-"""
-function need(x::Any) x end
 
 "Deferred's enable lazy evaluation"
 type Deferred{T} <: Promise{T}
@@ -28,8 +24,8 @@ Deferred(f::Function) = Deferred{Any}(f)
 
 """
 The first time a Deferred is needed it's thunk is called and the
-result is stored. Whether it return or throws. From then on it
-will just replicate this result without re-running the thunk
+result is stored. Whether it returns or throws. From then on it
+will just replicate this result without calling the thunk
 """
 function need(d::Deferred)
   d.state ≡ evaled && return d.value
