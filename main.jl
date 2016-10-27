@@ -96,7 +96,7 @@ Future() = Future{Any}()
 Fill in the `Future` with its final value. Any `Task`'s waiting
 on this value will be able to continue
 """
-function assign(f::Future, value::Any)
+function Base.put!(f::Future, value::Any)
   if f.state ≡ pending
     f.state = evaled
     f.value = value
