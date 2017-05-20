@@ -5,7 +5,7 @@ A Promise is a placeholder for a value which isn't yet known.
 Though we may know what type it will be hence Promises take
 the type of their eventual value as a parameter
 """
-abstract Promise{T}
+abstract type Promise{T} end
 
 "A Promise can be in one of the following states"
 @enum State pending needed evaled failed
@@ -13,12 +13,12 @@ abstract Promise{T}
 Base.isready(p::Promise) = p.state > needed
 
 "Deferred's enable lazy evaluation"
-type Deferred{T} <: Promise{T}
+mutable struct Deferred{T} <: Promise{T}
   thunk::Function
   state::State
   value::T
   error::Exception
-  Deferred(f::Function) = new(f, pending)
+  Deferred{T}(f::Function) where T = new(f, pending)
 end
 
 "Make the type parameter optional"
@@ -58,12 +58,12 @@ end
 """
 Results wrap Tasks with the API of a Promise
 """
-type Result{T} <: Promise{T}
+mutable struct Result{T} <: Promise{T}
   cond::Task
   state::State
   value::T
   error::Exception
-  Result(c::Task) = new(c, pending)
+  Result{T}(c::Task) where T = new(c, pending)
 end
 
 """
@@ -84,12 +84,12 @@ end
 We use Futures when we don't have a value yet and aren't even sure
 where its going to come from
 """
-type Future{T} <: Promise{T}
+mutable struct Future{T} <: Promise{T}
   state::State
   cond::Condition
   value::T
   error::Exception
-  Future() = new(pending, Condition())
+  Future{T}() where T = new(pending, Condition())
 end
 
 Future() = Future{Any}()
