@@ -67,9 +67,8 @@ mutable struct Result{T} <: Promise{T}
 end
 
 """
-Run body in a seperate thread and communicate the result with a Result
-which is the only difference between this and @Base.async which returns
-a Task
+Run body in a seperate thread and return a `Result` which acts as a
+placeholder for the result of the computation
 """
 macro thread(body)
   if isa(body, Expr) && body.head ≡ :(::)
