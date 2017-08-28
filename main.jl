@@ -80,8 +80,9 @@ macro thread(body)
 end
 
 """
-We use Futures when we don't have a value yet and aren't even sure
-where its going to come from
+A Future is like a Result except it's used in cases where it's not simply
+wrapping a Task. This might be when wrapping an asynchronous C API or when
+one task is responsible for several Promises
 """
 mutable struct Future{T} <: Promise{T}
   state::State
