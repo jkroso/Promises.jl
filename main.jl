@@ -22,6 +22,8 @@ mutable struct Deferred{T} <: Promise{T}
 end
 
 Base.convert(::Type{Promise}, value::T) where T = Deferred{T}(evaled, value)
+# Prevent double wrapping
+Base.convert(::Type{Promise}, value::Promise) = value
 
 "Make the type parameter optional"
 Deferred(f::Function) = Deferred{Any}(f)
