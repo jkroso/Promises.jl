@@ -1,4 +1,4 @@
-@require "." @thread @defer need Deferred Result Future
+@require "." @thread @defer need Deferred Result Future Promise
 
 testset("need") do
   array = Deferred(vcat)
@@ -11,6 +11,8 @@ testset("need") do
     @test isa(@catch(need(Deferred{Vector}(string))), MethodError)
   end
 end
+
+@test convert(Promise, 1)|>need == 1
 
 testset("@defer") do
   @test need(@defer 1) == 1

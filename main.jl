@@ -16,10 +16,12 @@ Base.isready(p::Promise) = p.state > needed
 mutable struct Deferred{T} <: Promise{T}
   thunk::Function
   state::State
-  value::T
-  error::Exception
+  value::Union{T,Exception}
   Deferred{T}(f::Function) where T = new(f, pending)
+  Deferred{T}(s::State, value) where T = new(identity, s, value)
 end
+
+Base.convert(::Type{Promise}, value::T) where T = Deferred{T}(evaled, value)
 
 "Make the type parameter optional"
 Deferred(f::Function) = Deferred{Any}(f)
@@ -31,14 +33,14 @@ will just replicate this result without calling the thunk
 """
 function need(d::Deferred)
   d.state ≡ evaled && return d.value
-  d.state ≡ failed && rethrow(d.error)
+  d.state ≡ failed && rethrow(d.value)
   try
     d.value = d.thunk()
     d.state = evaled
     d.value
   catch e
     d.state = failed
-    d.error = e
+    d.value = e
     rethrow(e)
   end
 end
