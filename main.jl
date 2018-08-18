@@ -1,4 +1,5 @@
 @require "github.com/jkroso/Prospects.jl" need
+using Distributed
 
 """
 A Promise is a placeholder for a value which isn't yet known.
@@ -80,7 +81,7 @@ macro thread(body)
   else
     T = Any
   end
-  :(Result{$T}(@schedule $(esc(body))))
+  :(Result{$T}(@async $(esc(body))))
 end
 
 """
@@ -130,10 +131,10 @@ end
 function need(f::Union{Future,Result})
   f.state ≡ evaled && return f.value
   f.state ≡ failed && rethrow(f.error)
-  f.state ≡ needed && return wait(f.cond)
+  f.state ≡ needed && return _wait(f.cond)
   try
     f.state = needed
-    f.value = wait(f.cond)
+    f.value = _wait(f.cond)
     f.state = evaled
     f.value
   catch e
@@ -142,5 +143,8 @@ function need(f::Union{Future,Result})
     rethrow(e)
   end
 end
+
+_wait(t::Task) = fetch(t)
+_wait(c::Condition) = wait(c)
 
 Base.wait(p::Promise) = need(p)
