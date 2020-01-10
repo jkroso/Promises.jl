@@ -15,11 +15,12 @@ Base.isready(p::Promise) = p.state > needed
 
 "Deferred's enable lazy evaluation"
 mutable struct Deferred{T} <: Promise{T}
+  lock::ReentrantLock
   thunk::Function
   state::State
   value::Union{T,Exception}
-  Deferred{T}(f::Function) where T = new(f, pending)
-  Deferred{T}(s::State, value) where T = new(identity, s, value)
+  Deferred{T}(f::Function) where T = new(ReentrantLock(), f, pending)
+  Deferred{T}(s::State, value) where T = new(ReentrantLock(), identity, s, value)
 end
 
 Base.convert(::Type{Promise}, value::T) where T = Deferred{T}(evaled, value)
@@ -35,16 +36,18 @@ result is stored. Whether it returns or throws. From then on it
 will just replicate this result without calling the thunk
 """
 function need(d::Deferred)
-  d.state ≡ evaled && return d.value
-  d.state ≡ failed && rethrow(d.value)
-  try
-    d.value = d.thunk()
-    d.state = evaled
-    d.value
-  catch e
-    d.state = failed
-    d.value = e
-    rethrow(e)
+  lock(d.lock) do
+    d.state ≡ evaled && return d.value
+    d.state ≡ failed && throw(d.value)
+    try
+      d.value = d.thunk()
+      d.state = evaled
+      d.value
+    catch e
+      d.state = failed
+      d.value = e
+      throw(e)
+    end
   end
 end
 
@@ -130,7 +133,7 @@ end
 
 function need(f::Union{Future,Result})
   f.state ≡ evaled && return f.value
-  f.state ≡ failed && rethrow(f.error)
+  f.state ≡ failed && throw(f.error)
   f.state ≡ needed && return _wait(f.cond)
   try
     f.state = needed
@@ -139,10 +142,13 @@ function need(f::Union{Future,Result})
     f.value
   catch e
     f.state = failed
-    f.error = e
-    rethrow(e)
+    f.error = unwrap(e)
+    throw(f.error)
   end
 end
+
+unwrap(a) = a
+unwrap(a::TaskFailedException) = a.task.result
 
 _wait(t::Task) = fetch(t)
 _wait(c::Condition) = wait(c)
