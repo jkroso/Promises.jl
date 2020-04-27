@@ -1,4 +1,5 @@
-@require "." @thread @defer need Deferred Result Future Promise
+@use "github.com/jkroso/Rutherford.jl/test.jl" testset @test @catch
+@use "." @thread @defer need Deferred Result Future Promise
 
 testset("need") do
   array = Deferred(vcat)

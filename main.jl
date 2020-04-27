@@ -1,4 +1,4 @@
-@require "github.com/jkroso/Prospects.jl" need
+@use "github.com/jkroso/Prospects.jl" need
 using Distributed
 
 """
